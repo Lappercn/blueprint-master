@@ -336,121 +336,130 @@ class AnalysisService:
             logger.info(f"Starting OCR for diagnosis mindmap: {file_name}")
             yield "# 🚀 正在解析蓝图结构...\n"
             
-            ocr_text = self.ocr_client.recognize(file_content)
+            # 使用多线程+心跳机制处理OCR
+            import threading
+            import queue
+            
+            ocr_queue = queue.Queue()
+            
+            def run_ocr_thread():
+                try:
+                    text = self.ocr_client.recognize(file_content)
+                    ocr_queue.put({"status": "success", "data": text})
+                except Exception as e:
+                    ocr_queue.put({"status": "error", "error": e})
+            
+            ocr_thread = threading.Thread(target=run_ocr_thread)
+            ocr_thread.start()
+            
+            # 等待OCR结果，期间发送心跳
+            while ocr_thread.is_alive():
+                ocr_thread.join(timeout=2.0)
+                if ocr_thread.is_alive():
+                     yield f"<!-- processing ocr... -->\n" 
+            
+            # 获取结果
+            if not ocr_queue.empty():
+                result = ocr_queue.get()
+                if result["status"] == "error":
+                     raise result["error"]
+                ocr_text = result["data"]
+            else:
+                ocr_text = ""
             
             if not ocr_text or len(ocr_text.strip()) == 0:
-                yield "# ❌ 无法识别文件内容"
+                logger.warning("OCR returned empty text")
+                yield "无法识别文件内容，请检查文件是否清晰或格式是否正确。"
                 return
 
-            # 2. 构建 Prompt
-            system_prompt = """
-            你是一位资深架构师和思维导图专家。
-            你的任务是阅读用户上传的蓝图文档内容，并直接生成一份**蓝图诊断架构图**。
+            logger.info("OCR completed, starting mindmap generation...")
             
-            ### 核心目标：
-            还原用户的蓝图逻辑，并直接在架构图上标注出不足和改进建议。让用户一眼就能看到自己的蓝图长什么样，以及哪里有问题。
-
-            ### 输出格式要求 (Markmap Markdown)：
-            1.  **根节点**：使用一级标题 #，命名为 “🚀 [项目/文件名称] - 蓝图诊断架构图”。
-            2.  **架构还原 (AS-IS)**：根据文档内容，构建蓝图的层级结构（如：战略层 -> 业务层 -> 应用层 -> 数据层 -> 技术层）。
-            3.  **原位诊断 (Diagnosis)**：
-                *   在具体的架构节点下，如果发现设计缺陷，直接添加子节点，并使用 ❌ Emoji 开头描述问题。
-            4.  **原位建议 (Suggestion)**：
-                *   在问题节点下，或者对应的架构节点下，添加子节点，并使用 💡 Emoji 开头描述改进建议。
-            5.  **语言要求**：**必须完全使用中文输出**。请再次确认所有节点内容均为中文。
-
-            ### 示例结构：
-            # 🚀 企业数字化转型蓝图 - 诊断架构图
-            ## 1. 战略规划层
-            ### 愿景：成为行业领导者
-            ### ❌ 问题：缺乏量化的战略目标
-            #### 💡 建议：引入BSC平衡计分卡进行指标拆解
-            ## 2. 业务架构层
-            ### 营销域
-            #### 线下渠道管理
-            #### ❌ 问题：与线上渠道割裂，数据不通
-            ##### 💡 建议：构建全渠道营销中心 (OMC)
-            """
+            # 2. 生成思维导图
+            yield "\n# 🧠 正在生成诊断思维导图...\n"
             
-            user_prompt = f"请根据以下蓝图文档内容，生成诊断架构图：\n\n{ocr_text}"
-            
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
+            # 构建生成思维导图的 Prompt
+            prompt_messages = [
+                {"role": "system", "content": """
+                你是一个战略咨询专家。请根据用户提供的文档内容，直接生成一份**Markmap格式**的诊断思维导图。
+                
+                **输出要求：**
+                1. 根节点为：`# 🚀 [文档标题] - 深度诊断图`
+                2. 第一层节点必须包含：`## 核心问题`、`## 潜在风险`、`## 改进建议`。
+                3. 使用 Emoji 增强可读性。
+                4. 只输出 Markmap Markdown 代码，不要包含 ```markdown 代码块标记。
+                """},
+                {"role": "user", "content": f"文档内容如下：\n\n{ocr_text[:50000]}"} # 截断防止超长
             ]
             
-            # 3. LLM 流式生成
-            for chunk in self.llm_client.chat_stream(messages):
+            for chunk in self.llm_client.chat_stream(prompt_messages):
                 yield chunk
 
         except Exception as e:
-            logger.error(f"Diagnosis mindmap failed: {str(e)}", exc_info=True)
-            yield f"# ❌ 生成失败: {str(e)}"
+            logger.error(f"Mindmap analysis failed: {str(e)}", exc_info=True)
+            yield f"\n# ❌ 分析失败: {str(e)}"
 
     def generate_smart_mindmap(self, file_content: bytes, file_name: str) -> Generator[str, None, None]:
         """
-        分析文件并生成智能思维导图（梳理模式，非诊断）
-        :param file_content: 文件内容
-        :param file_name: 文件名
-        :return: LLM 流式响应生成器 (Markmap Markdown)
+        生成智能思维导图
         """
         try:
-            # 1. OCR 识别
+             # 1. OCR 识别
             logger.info(f"Starting OCR for smart mindmap: {file_name}")
-            yield "# 🚀 正在梳理文档逻辑...\n"
+            yield "# 🚀 正在读取文档内容...\n"
             
-            ocr_text = self.ocr_client.recognize(file_content)
+            # 使用多线程+心跳机制处理OCR
+            import threading
+            import queue
             
-            if not ocr_text or len(ocr_text.strip()) == 0:
-                yield "# ❌ 无法识别文件内容"
+            ocr_queue = queue.Queue()
+            
+            def run_ocr_thread():
+                try:
+                    text = self.ocr_client.recognize(file_content)
+                    ocr_queue.put({"status": "success", "data": text})
+                except Exception as e:
+                    ocr_queue.put({"status": "error", "error": e})
+            
+            ocr_thread = threading.Thread(target=run_ocr_thread)
+            ocr_thread.start()
+            
+            # 等待OCR结果，期间发送心跳
+            while ocr_thread.is_alive():
+                ocr_thread.join(timeout=2.0)
+                if ocr_thread.is_alive():
+                     yield f"<!-- processing ocr... -->\n"
+            
+            # 获取结果
+            if not ocr_queue.empty():
+                result = ocr_queue.get()
+                if result["status"] == "error":
+                     raise result["error"]
+                ocr_text = result["data"]
+            else:
+                ocr_text = ""
+                
+            if not ocr_text:
+                yield "无法识别文件内容"
                 return
 
-            # 2. 构建 Prompt
-            system_prompt = """
-            你是一位逻辑思维大师和思维导图专家。
-            你的任务是阅读用户上传的文档内容，将其核心思想和逻辑结构整理为一份**清晰、结构化的思维导图**。
+            logger.info("OCR completed, generating mindmap...")
+            yield "\n# 💡 正在构建思维导图...\n"
             
-            ### 核心目标：
-            帮助用户快速厘清文档脉络，将非结构化的文本转化为结构化的知识图谱。不要进行评价或诊断，只进行**梳理和可视化**。
-
-            ### 输出格式要求 (Markmap Markdown)：
-            1.  **根节点**：使用一级标题 #，命名为 “🧠 [项目/文件名称] - 核心逻辑图”。
-            2.  **结构化梳理**：
-                *   提取文档的关键主题作为二级标题。
-                *   将支撑论点、细节、数据作为子节点。
-                *   确保逻辑层级分明，不遗漏重要信息。
-            3.  **精简表达**：节点文字要简练有力，避免大段长句。
-            4.  **语言要求**：**必须完全使用中文输出**。请再次确认所有内容均为中文。
-
-            ### 示例结构：
-            # 🧠 2024年度营销规划 - 核心逻辑图
-            ## 1. 市场环境分析
-            ### 宏观经济回暖
-            ### 竞品低价策略冲击
-            ## 2. 核心战略目标
-            ### 销售额增长 30%
-            ### 市场占有率 Top 1
-            ## 3. 关键行动举措
-            ### 渠道下沉
-            #### 拓展三四线城市代理商
-            ### 数字化营销
-            #### 搭建私域流量池
-            """
-            
-            user_prompt = f"请根据以下文档内容，生成一份智能思维导图：\n\n{ocr_text}"
-            
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
+            prompt_messages = [
+                {"role": "system", "content": """
+                请将以下文档内容整理为清晰的 Markmap 思维导图。
+                保持结构化，提取关键信息。
+                只输出 Markdown 内容。
+                """},
+                {"role": "user", "content": ocr_text[:50000]}
             ]
             
-            # 3. LLM 流式生成
-            for chunk in self.llm_client.chat_stream(messages):
+            for chunk in self.llm_client.chat_stream(prompt_messages):
                 yield chunk
 
         except Exception as e:
             logger.error(f"Smart mindmap failed: {str(e)}", exc_info=True)
-            yield f"# ❌ 生成失败: {str(e)}"
+            yield f"\n# ❌ 生成失败: {str(e)}"
 
     def generate_proposal(self, client_needs: str, user_ideas: str, selected_methodologies: List[str] = None, custom_methodologies: List[str] = None, reference_file_content: bytes | None = None, reference_file_name: str | None = None) -> Generator[str, None, None]:
         """
