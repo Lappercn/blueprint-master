@@ -179,9 +179,8 @@ if [ -d "$BLUEPRINT_DIR" ]; then
             -w /app \
             -e MONGO_URI="mongodb://$MONGO_CONTAINER:27017/blueprint_master" \
             python:3.10-slim sh -c "
-                pip install --upgrade pip --default-timeout=1000 &&
-                pip install -r requirements.txt --default-timeout=1000 && 
-                gunicorn -w 1 -k gevent --worker-connections 1000 -b 0.0.0.0:5000 --timeout 600 wsgi:app
+                # 保持容器运行，不自动启动服务，方便手动进入调试
+                tail -f /dev/null
             "
         echo "    蓝图大师后端已启动"
     fi
