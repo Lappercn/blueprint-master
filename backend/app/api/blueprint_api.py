@@ -71,6 +71,7 @@ def analyze():
             "role": role,
             "action": "analyze_blueprint",
             "filename": file_name,
+            "custom_prompt": custom_prompt,
             "created_at": datetime.utcnow()
         }
         
@@ -133,7 +134,8 @@ def analyze():
             content_type='text/event-stream; charset=utf-8',
             headers={
                 'X-Accel-Buffering': 'no',  # 禁用 Nginx 缓冲
-                'Cache-Control': 'no-cache' # 禁用浏览器/代理缓存
+                'Cache-Control': 'no-cache', # 禁用浏览器/代理缓存
+                'Connection': 'keep-alive'  # 保持长连接
             }
         )
 
