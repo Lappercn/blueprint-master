@@ -1493,8 +1493,16 @@ body {
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
 }
 
+.main-layout {
+  min-height: 100vh;
+}
+
+.main-content {
+  padding: 0;
+}
+
 .site-footer {
-  padding: 12px 16px;
+  padding: 12px clamp(12px, 3vw, 24px);
   color: #475569;
   background: rgba(255, 255, 255, 0.65);
   border-top: 1px solid rgba(15, 23, 42, 0.08);
@@ -1502,12 +1510,13 @@ body {
 }
 
 .site-footer-content {
-  max-width: 1200px;
+  width: min(100%, 1400px);
   margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 10px 12px;
   font-size: 13px;
   line-height: 1.4;
 }
@@ -1522,21 +1531,11 @@ body {
 }
 
 .separator {
-  margin: 0 10px;
+  margin: 0 clamp(6px, 1.4vw, 10px);
   color: #94a3b8;
 }
-
-@media (max-width: 768px) {
-  .site-footer-content {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .separator {
-    margin: 0 8px;
-  }
-  .site-footer-right {
-    color: #64748b;
-  }
+.site-footer-right {
+  color: #64748b;
 }
 
 .role-selector-section {
@@ -1606,20 +1605,21 @@ body {
   position: sticky;
   top: 0;
   z-index: 1000;
-  padding: 0 20px;
+  padding: 0 clamp(12px, 3vw, 24px);
 }
 
 .header-content {
-  max-width: 95%;
+  width: min(100%, 1400px);
   margin: 0 auto;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
 }
 
 /* Mode Switcher */
 .mode-tabs {
-  margin-bottom: 20px;
+  margin-bottom: clamp(12px, 2vw, 20px);
 }
 
 .mode-tabs :deep(.el-tabs__nav-wrap::after) {
@@ -1627,11 +1627,11 @@ body {
 }
 
 .generation-form {
-  padding: 10px 0;
+  padding: 8px 0;
 }
 
 .form-item {
-  margin-bottom: 20px;
+  margin-bottom: clamp(14px, 2vw, 20px);
 }
 
 .action-footer {
@@ -1641,7 +1641,7 @@ body {
 }
 
 .generate-btn {
-  width: 100%;
+  width: min(100%, 560px);
   font-size: 16px;
   font-weight: 600;
   letter-spacing: 1px;
@@ -1661,21 +1661,23 @@ body {
 <style scoped>
 /* 文件选择状态样式 */
 .file-selected-state {
-  padding: 20px;
+  padding: clamp(14px, 2vw, 20px);
 }
 
 .file-info {
   display: flex;
   align-items: center;
-  background-color: #f5f7fa;
-  padding: 15px;
+  background: rgba(248, 250, 252, 0.85);
+  padding: clamp(12px, 1.8vw, 16px);
   border-radius: 8px;
-  margin-bottom: 25px;
+  margin-bottom: clamp(14px, 2.5vw, 25px);
+  gap: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
 }
 
 .file-details {
   flex: 1;
-  margin-left: 15px;
+  margin-left: 0;
 }
 
 .file-details h3 {
@@ -1692,19 +1694,20 @@ body {
 
 .action-buttons {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: clamp(12px, 2vw, 20px);
 }
 
 .action-card {
   display: flex;
   align-items: center;
-  padding: 20px;
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
+  padding: clamp(14px, 2vw, 20px);
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  border-radius: 12px;
   cursor: pointer;
   transition: all 0.3s;
-  background-color: #fff;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
 }
 
 .action-card:hover {
@@ -1759,12 +1762,6 @@ body {
   color: #c0c4cc;
 }
 
-@media (max-width: 768px) {
-  .action-buttons {
-    grid-template-columns: 1fr;
-  }
-}
-
 .logo {
   display: flex;
   align-items: center;
@@ -1800,13 +1797,35 @@ body {
 .header-tags {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.username {
+  color: #334155;
+  font-size: 13px;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .content-wrapper {
-  width: 95%;
-  max-width: 1400px;
-  margin: 20px auto;
-  padding: 0 10px;
+  width: min(calc(100% - clamp(16px, 4vw, 32px)), 1400px);
+  margin: clamp(12px, 2vw, 20px) auto;
 }
 
 /* 输入面板 */
@@ -1814,25 +1833,26 @@ body {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 30px;
+  gap: clamp(16px, 3vw, 30px);
   width: 100%;
 }
 
 .hero-text {
   text-align: center;
-  margin-top: 20px;
-  padding: 0 10px;
+  margin-top: clamp(10px, 2vw, 20px);
+  padding: 0 clamp(8px, 2vw, 12px);
   align-self: center;
+  max-width: 900px;
 }
 
 .hero-text h2 {
-  font-size: 24px;
+  font-size: clamp(18px, 2.4vw, 26px);
   color: #303133;
   margin-bottom: 8px;
 }
 
 .hero-text p {
-  font-size: 14px;
+  font-size: clamp(13px, 1.4vw, 15px);
   color: #606266;
 }
 
@@ -1842,11 +1862,21 @@ body {
   overflow: hidden;
   border: none;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.90);
+  backdrop-filter: blur(10px);
+}
+
+.common-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .custom-prompt-section, .methodology-section {
-  padding: 15px 20px;
+  padding: clamp(12px, 2.2vw, 18px) clamp(12px, 2.4vw, 20px);
   background-color: #f9fafc;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 12px;
 }
 
 .methodology-section {
@@ -1892,8 +1922,8 @@ body {
 
 .upload-area :deep(.el-upload-dragger) {
   border: none;
-  border-radius: 0;
-  padding: 40px 0;
+  border-radius: 12px;
+  padding: clamp(26px, 4vw, 44px) 0;
   background-color: #fff;
 }
 
@@ -1910,7 +1940,7 @@ body {
 
 /* 结果面板 */
 .result-panel {
-  background: white;
+  background: rgba(255, 255, 255, 0.92);
   border-radius: 12px;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
   overflow: hidden;
@@ -1919,18 +1949,21 @@ body {
   height: auto;
   min-height: 60vh;
   width: 100%;
+  backdrop-filter: blur(10px);
 }
 
 .result-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px 20px;
+  padding: 12px clamp(12px, 2vw, 20px);
   border-bottom: 1px solid #ebeef5;
   background-color: #fff;
   position: sticky;
   top: 0;
   z-index: 10;
+  gap: 10px 12px;
+  flex-wrap: wrap;
 }
 
 .status-badge {
@@ -1949,10 +1982,16 @@ body {
 .actions {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.action-btn {
+  border-radius: 10px;
 }
 
 .markdown-container {
-  padding: 20px;
+  padding: clamp(12px, 2vw, 20px);
   flex: 1;
   overflow-y: auto;
 }
@@ -1962,13 +2001,13 @@ body {
 }
 
 .markdown-paper.paper-mode {
-  max-width: 210mm;
-  margin: 10px auto 30px;
+  width: min(210mm, 100%);
+  margin: clamp(10px, 1.6vw, 16px) auto clamp(16px, 2vw, 30px);
   background: #ffffff;
   border: 1px solid #e5e7eb;
-  border-radius: 6px;
+  border-radius: 10px;
   box-shadow: 0 10px 30px rgba(17, 24, 39, 0.10);
-  padding: 18mm 18mm;
+  padding: clamp(16px, 3vw, 72px);
 }
 
 .markdown-paper.paper-mode .markdown-body {
@@ -2059,42 +2098,11 @@ body {
   .desktop-only {
     display: none !important;
   }
-  
-  .header {
-    padding: 0 15px;
-  }
-  
-  .hero-text h2 {
-    font-size: 20px;
-  }
-  
-  .hero-text p {
-    font-size: 13px;
-  }
-  
-  .upload-area :deep(.el-upload-dragger) {
-    padding: 30px 0;
-  }
-  
+
   .btn-text {
     display: none;
   }
-  
-  .markdown-container {
-    padding: 15px;
-  }
 
-  .markdown-paper.paper-mode {
-    max-width: 100%;
-    margin: 0;
-    padding: 16px 14px;
-    border-radius: 10px;
-  }
-  
-  .result-header {
-    padding: 10px 15px;
-  }
-  
   .methodology-group :deep(.el-checkbox) {
     margin-right: 0;
     width: 100%;
