@@ -203,8 +203,8 @@ class AnalysisService:
         """
         try:
             # 0. 发送初始状态，确保流连接建立
-            # 添加足够长的空格填充(Padding)，强制冲刷各类网关/代理的缓冲区(通常需 > 1KB)
-            padding = " " * 4096
+            # 添加超长空格填充(Padding > 18KB)，强制冲刷 Waitress (默认18KB缓冲) 和 Nginx 的缓冲区
+            padding = " " * 20480 
             yield f"🔄 正在解析文档内容，请稍候...{padding}\n\n"
             
             # 定时发送心跳包的生成器函数
