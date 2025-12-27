@@ -27,7 +27,9 @@ class LLMClient:
             
         self.client = OpenAI(
             api_key=api_key,
-            base_url=base_url
+            base_url=base_url,
+            timeout=600.0,  # 显式设置超时时间，匹配 Nginx 和 Waitress 配置
+            max_retries=3   # 增加自动重试机制
         )
         self.model = model
 
