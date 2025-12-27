@@ -21,4 +21,5 @@ if __name__ == '__main__':
     # threads: 处理请求的线程数
     # host: 监听地址 (0.0.0.0 表示允许外部访问；如仅本机反代可使用 127.0.0.1)
     # 生产部署需要外部访问时，建议使用 0.0.0.0
-    serve(app, host='0.0.0.0', port=5000, threads=6)
+    # channel_timeout: 连接保持时间，默认为120s。生成蓝图需要较长时间，需调大。
+    serve(app, host='0.0.0.0', port=5000, threads=6, channel_timeout=600)
