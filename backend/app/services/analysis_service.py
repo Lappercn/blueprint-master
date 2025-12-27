@@ -236,10 +236,13 @@ class AnalysisService:
             ocr_thread.start()
             
             # 等待OCR结果，期间发送心跳
+            # 使用 SSE 协议标准的注释格式 ": comment\n\n"
+            # 许多代理服务器（如Nginx）需要看到 \n\n 才会刷新缓冲区
+            # 且注释行以冒号开头是 SSE 规范，避免前端解析错误
             while ocr_thread.is_alive():
                 ocr_thread.join(timeout=2.0) # 每2秒醒来一次
                 if ocr_thread.is_alive():
-                     yield f"<!-- processing ocr... -->\n" # 发送SSE注释作为心跳
+                     yield f": processing ocr keep-alive\n\n" 
             
             # 获取结果
             if not ocr_queue.empty():
@@ -356,7 +359,7 @@ class AnalysisService:
             while ocr_thread.is_alive():
                 ocr_thread.join(timeout=2.0)
                 if ocr_thread.is_alive():
-                     yield f"<!-- processing ocr... -->\n" 
+                     yield f": processing ocr keep-alive\n\n" 
             
             # 获取结果
             if not ocr_queue.empty():
@@ -427,7 +430,7 @@ class AnalysisService:
             while ocr_thread.is_alive():
                 ocr_thread.join(timeout=2.0)
                 if ocr_thread.is_alive():
-                     yield f"<!-- processing ocr... -->\n"
+                     yield f": processing ocr keep-alive\n\n"
             
             # 获取结果
             if not ocr_queue.empty():
