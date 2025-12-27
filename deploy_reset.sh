@@ -172,7 +172,7 @@ if [ -d "$BLUEPRINT_DIR" ]; then
             python:3.10-slim sh -c "
                 pip install --upgrade pip &&
                 pip install -r requirements.txt && 
-                gunicorn -w 1 -k gthread --threads 10 -b 0.0.0.0:5000 --timeout 600 run_prod:app
+                gunicorn -w 4 -k gthread --threads 100 -b 0.0.0.0:5000 --timeout 600 --worker-connections 1000 run_prod:app
             "
         echo "    蓝图大师后端已启动"
     fi
