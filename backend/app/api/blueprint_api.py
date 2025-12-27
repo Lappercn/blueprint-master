@@ -130,7 +130,11 @@ def analyze():
         # 返回流式响应
         return Response(
             stream_with_context(generate()),
-            content_type='text/event-stream; charset=utf-8'
+            content_type='text/event-stream; charset=utf-8',
+            headers={
+                'X-Accel-Buffering': 'no',  # 禁用 Nginx 缓冲
+                'Cache-Control': 'no-cache' # 禁用浏览器/代理缓存
+            }
         )
 
     except Exception as e:
