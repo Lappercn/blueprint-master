@@ -237,9 +237,9 @@ class AnalysisService:
             
             # 等待OCR结果，期间发送心跳
             while ocr_thread.is_alive():
-                ocr_thread.join(timeout=5.0) # 每5秒醒来一次
+                ocr_thread.join(timeout=2.0) # 每2秒醒来一次
                 if ocr_thread.is_alive():
-                     yield f": processing ocr...\n\n" # 发送SSE注释作为心跳
+                     yield f"<!-- processing ocr... -->\n" # 发送SSE注释作为心跳
             
             # 获取结果
             if not ocr_queue.empty():
