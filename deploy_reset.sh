@@ -179,8 +179,6 @@ if [ -d "$BLUEPRINT_DIR" ]; then
             -w /app \
             -e MONGO_URI="mongodb://$MONGO_CONTAINER:27017/blueprint_master" \
             python:3.10-slim sh -c "
-                pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/ &&
-                pip config set global.trusted-host mirrors.aliyun.com &&
                 pip install --upgrade pip --default-timeout=1000 &&
                 pip install -r requirements.txt --default-timeout=1000 && 
                 gunicorn -w 1 -k gevent --worker-connections 1000 -b 0.0.0.0:5000 --timeout 600 wsgi:app
