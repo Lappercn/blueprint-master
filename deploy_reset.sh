@@ -76,7 +76,9 @@ fi
 echo ">>> [1/6] 清理环境..."
 # 停止并删除所有运行中的容器（包括非本项目的，请谨慎使用，或修改为只停止相关容器）
 # 为了稳妥起见，我们先列出并停止脚本定义的特定容器，如果需要停止所有，请取消注释下一行
-# docker stop $(docker ps -aq) >/dev/null 2>&1
+echo "    正在停止并删除所有 Docker 容器..."
+docker stop $(docker ps -aq) >/dev/null 2>&1
+docker rm $(docker ps -aq) >/dev/null 2>&1
 
 # 停止并删除相关容器 (强制)
 echo "    正在停止旧容器: $NGINX_CONTAINER $BACKEND_CONTAINER $MONGO_CONTAINER $BLUEPRINT_BACKEND"
