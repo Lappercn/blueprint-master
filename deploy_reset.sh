@@ -170,6 +170,7 @@ if [ -d "$BLUEPRINT_DIR" ]; then
             -w /app \
             -e MONGO_URI="mongodb://$MONGO_CONTAINER:27017/blueprint_master" \
             python:3.10-slim sh -c "
+                pip install --upgrade pip -i https://pypi.tuna.tsinghua.edu.cn/simple &&
                 pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple && 
                 python run_prod.py
             "
