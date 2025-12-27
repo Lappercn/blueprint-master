@@ -204,12 +204,53 @@ class AnalysisService:
         try:
             # 0. 发送初始状态，确保流连接建立
             # 添加足够长的空格填充(Padding)，强制冲刷各类网关/代理的缓冲区(通常需 > 1KB)
-            padding = " " * 2048
+            padding = " " * 4096
             yield f"🔄 正在解析文档内容，请稍候...{padding}\n\n"
+            
+            # 定时发送心跳包的生成器函数
+            def keep_alive_ocr():
+                import time
+                while True:
+                    time.sleep(2) # 每2秒检查一次
+                    yield f": keep-alive\n\n"
 
             # 1. OCR 识别
             logger.info(f"Starting OCR for file: {file_name}")
-            ocr_text = self.ocr_client.recognize(file_content)
+            
+            # 由于OCR是同步阻塞调用，我们无法在其中插入yield。
+            # 如果OCR非常慢（超过60秒），仍然可能导致超时。
+            # 理想方案是将OCR放入独立线程，主线程yield心跳。
+            # 这里先尝试更激进的padding和更快的响应。
+            
+            import threading
+            import queue
+            
+            ocr_queue = queue.Queue()
+            
+            def run_ocr_thread():
+                try:
+                    text = self.ocr_client.recognize(file_content)
+                    ocr_queue.put({"status": "success", "data": text})
+                except Exception as e:
+                    ocr_queue.put({"status": "error", "error": e})
+            
+            ocr_thread = threading.Thread(target=run_ocr_thread)
+            ocr_thread.start()
+            
+            # 等待OCR结果，期间发送心跳
+            while ocr_thread.is_alive():
+                ocr_thread.join(timeout=5.0) # 每5秒醒来一次
+                if ocr_thread.is_alive():
+                     yield f": processing ocr...\n\n" # 发送SSE注释作为心跳
+            
+            # 获取结果
+            if not ocr_queue.empty():
+                result = ocr_queue.get()
+                if result["status"] == "error":
+                     raise result["error"]
+                ocr_text = result["data"]
+            else:
+                ocr_text = ""
             
             logger.info(f"OCR result length: {len(ocr_text) if ocr_text else 0}")
 
