@@ -61,7 +61,7 @@ class OCRClient:
                 params=params,
                 headers=headers,
                 data=file_content,
-                timeout=60 # 设置超时时间
+                timeout=300 # 增加超时时间到 300秒 (5分钟)
             )
 
             # 检查响应状态
