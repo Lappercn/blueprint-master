@@ -419,6 +419,19 @@
           </transition>
         </div>
       </el-main>
+
+      <el-footer class="site-footer">
+        <div class="site-footer-content">
+          <div class="site-footer-left">
+            <span>官网：</span>
+            <a href="https://tongzhilian.cn" target="_blank" rel="noopener noreferrer">tongzhilian.cn</a>
+            <span class="separator">·</span>
+            <span>邮箱：</span>
+            <a href="mailto:shibaizhelianmeng@163.com">shibaizhelianmeng@163.com</a>
+          </div>
+          <div class="site-footer-right">欢迎更多人加入我们</div>
+        </div>
+      </el-footer>
     </el-container>
 
     <!-- 思维导图弹窗 -->
@@ -1478,6 +1491,52 @@ body {
 .app-container {
   min-height: 100vh;
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+.site-footer {
+  padding: 12px 16px;
+  color: #475569;
+  background: rgba(255, 255, 255, 0.65);
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(8px);
+}
+
+.site-footer-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.site-footer a {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.site-footer a:hover {
+  text-decoration: underline;
+}
+
+.separator {
+  margin: 0 10px;
+  color: #94a3b8;
+}
+
+@media (max-width: 768px) {
+  .site-footer-content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .separator {
+    margin: 0 8px;
+  }
+  .site-footer-right {
+    color: #64748b;
+  }
 }
 
 .role-selector-section {
