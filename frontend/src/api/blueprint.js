@@ -1,4 +1,6 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL
+const SSE_BASE_URL = import.meta.env.VITE_SSE_API_BASE_URL || BASE_URL
+const STREAM_DONE_MARKER = '[[__STREAM_DONE__]]'
 
 export const analyzeBlueprintStream = async (file, customPrompt, methodologies, customMethodologies, userInfo, signal, onChunk, onError, onComplete) => {
   const formData = new FormData()
@@ -21,7 +23,7 @@ export const analyzeBlueprintStream = async (file, customPrompt, methodologies, 
   }
 
   try {
-    const response = await fetch(`${BASE_URL}/blueprint/analyze`, {
+    const response = await fetch(`${SSE_BASE_URL}/blueprint/analyze`, {
       method: 'POST',
       body: formData,
       signal // 传递 AbortSignal
@@ -33,6 +35,7 @@ export const analyzeBlueprintStream = async (file, customPrompt, methodologies, 
 
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
+    let buffer = ''
 
     while (true) {
       const { done, value } = await reader.read()
@@ -42,8 +45,28 @@ export const analyzeBlueprintStream = async (file, customPrompt, methodologies, 
       }
       const chunk = decoder.decode(value, { stream: true })
       console.log('Received chunk:', chunk.length, 'chars')
-      onChunk(chunk)
+      buffer += chunk
+
+      const markerIndex = buffer.indexOf(STREAM_DONE_MARKER)
+      if (markerIndex !== -1) {
+        const before = buffer.slice(0, markerIndex)
+        if (before) onChunk(before)
+        try {
+          await reader.cancel()
+        } catch (e) {
+        }
+        if (onComplete) onComplete()
+        return
+      }
+
+      if (buffer.length > STREAM_DONE_MARKER.length) {
+        const flushLen = buffer.length - STREAM_DONE_MARKER.length
+        const out = buffer.slice(0, flushLen)
+        buffer = buffer.slice(flushLen)
+        if (out) onChunk(out)
+      }
     }
+    if (buffer) onChunk(buffer)
     
     if (onComplete) onComplete()
 
@@ -97,13 +120,34 @@ export const generateSmartMindmapStream = async (file, onChunk, onError, onCompl
 
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
+    let buffer = ''
 
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
       const chunk = decoder.decode(value, { stream: true })
-      onChunk(chunk)
+      buffer += chunk
+
+      const markerIndex = buffer.indexOf(STREAM_DONE_MARKER)
+      if (markerIndex !== -1) {
+        const before = buffer.slice(0, markerIndex)
+        if (before) onChunk(before)
+        try {
+          await reader.cancel()
+        } catch (e) {
+        }
+        if (onComplete) onComplete()
+        return
+      }
+
+      if (buffer.length > STREAM_DONE_MARKER.length) {
+        const flushLen = buffer.length - STREAM_DONE_MARKER.length
+        const out = buffer.slice(0, flushLen)
+        buffer = buffer.slice(flushLen)
+        if (out) onChunk(out)
+      }
     }
+    if (buffer) onChunk(buffer)
     
     if (onComplete) onComplete()
 
@@ -129,13 +173,34 @@ export const generateMindmapStream = async (content, onChunk, onError, onComplet
 
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
+    let buffer = ''
 
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
       const chunk = decoder.decode(value, { stream: true })
-      onChunk(chunk)
+      buffer += chunk
+
+      const markerIndex = buffer.indexOf(STREAM_DONE_MARKER)
+      if (markerIndex !== -1) {
+        const before = buffer.slice(0, markerIndex)
+        if (before) onChunk(before)
+        try {
+          await reader.cancel()
+        } catch (e) {
+        }
+        if (onComplete) onComplete()
+        return
+      }
+
+      if (buffer.length > STREAM_DONE_MARKER.length) {
+        const flushLen = buffer.length - STREAM_DONE_MARKER.length
+        const out = buffer.slice(0, flushLen)
+        buffer = buffer.slice(flushLen)
+        if (out) onChunk(out)
+      }
     }
+    if (buffer) onChunk(buffer)
     
     if (onComplete) onComplete()
 
@@ -161,13 +226,34 @@ export const analyzeBlueprintToMindmapStream = async (file, onChunk, onError, on
 
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
+    let buffer = ''
 
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
       const chunk = decoder.decode(value, { stream: true })
-      onChunk(chunk)
+      buffer += chunk
+
+      const markerIndex = buffer.indexOf(STREAM_DONE_MARKER)
+      if (markerIndex !== -1) {
+        const before = buffer.slice(0, markerIndex)
+        if (before) onChunk(before)
+        try {
+          await reader.cancel()
+        } catch (e) {
+        }
+        if (onComplete) onComplete()
+        return
+      }
+
+      if (buffer.length > STREAM_DONE_MARKER.length) {
+        const flushLen = buffer.length - STREAM_DONE_MARKER.length
+        const out = buffer.slice(0, flushLen)
+        buffer = buffer.slice(flushLen)
+        if (out) onChunk(out)
+      }
     }
+    if (buffer) onChunk(buffer)
     
     if (onComplete) onComplete()
 
@@ -218,13 +304,34 @@ export const generateProposalStream = async (clientNeeds, userIdeas, methodologi
 
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
+    let buffer = ''
 
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
       const chunk = decoder.decode(value, { stream: true })
-      onChunk(chunk)
+      buffer += chunk
+
+      const markerIndex = buffer.indexOf(STREAM_DONE_MARKER)
+      if (markerIndex !== -1) {
+        const before = buffer.slice(0, markerIndex)
+        if (before) onChunk(before)
+        try {
+          await reader.cancel()
+        } catch (e) {
+        }
+        if (onComplete) onComplete()
+        return
+      }
+
+      if (buffer.length > STREAM_DONE_MARKER.length) {
+        const flushLen = buffer.length - STREAM_DONE_MARKER.length
+        const out = buffer.slice(0, flushLen)
+        buffer = buffer.slice(flushLen)
+        if (out) onChunk(out)
+      }
     }
+    if (buffer) onChunk(buffer)
     
     if (onComplete) onComplete()
 
@@ -260,13 +367,34 @@ export const generateSubProposalStream = async (parentPlanFile, subPlanTitle, su
 
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
+    let buffer = ''
 
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
       const chunk = decoder.decode(value, { stream: true })
-      onChunk(chunk)
+      buffer += chunk
+
+      const markerIndex = buffer.indexOf(STREAM_DONE_MARKER)
+      if (markerIndex !== -1) {
+        const before = buffer.slice(0, markerIndex)
+        if (before) onChunk(before)
+        try {
+          await reader.cancel()
+        } catch (e) {
+        }
+        if (onComplete) onComplete()
+        return
+      }
+
+      if (buffer.length > STREAM_DONE_MARKER.length) {
+        const flushLen = buffer.length - STREAM_DONE_MARKER.length
+        const out = buffer.slice(0, flushLen)
+        buffer = buffer.slice(flushLen)
+        if (out) onChunk(out)
+      }
     }
+    if (buffer) onChunk(buffer)
 
     if (onComplete) onComplete()
   } catch (error) {

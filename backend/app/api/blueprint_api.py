@@ -20,6 +20,7 @@ import urllib.parse
 # 创建蓝图对象
 blueprint_bp = Blueprint('blueprint', __name__)
 logger = logging.getLogger(__name__)
+STREAM_DONE_MARKER = "\n\n[[__STREAM_DONE__]]\n\n"
 
 # 初始化 Service
 # 注意：在实际生产中，建议使用依赖注入或在请求上下文中获取
@@ -127,6 +128,7 @@ def analyze():
             # 3. 继续发送剩余内容
             for chunk in generator:
                 yield chunk
+            yield STREAM_DONE_MARKER
 
         # 返回流式响应
         return Response(
@@ -134,8 +136,7 @@ def analyze():
             content_type='text/event-stream; charset=utf-8',
             headers={
                 'X-Accel-Buffering': 'no',  # 禁用 Nginx 缓冲
-                'Cache-Control': 'no-cache', # 禁用浏览器/代理缓存
-                'Connection': 'keep-alive'  # 保持长连接
+                'Cache-Control': 'no-cache' # 禁用浏览器/代理缓存
             }
         )
 
@@ -168,14 +169,14 @@ def analyze_mindmap():
             )
             for chunk in generator:
                 yield chunk
+            yield STREAM_DONE_MARKER
 
         return Response(
             stream_with_context(generate()),
             content_type='text/event-stream; charset=utf-8',
             headers={
                 'X-Accel-Buffering': 'no',  # 禁用 Nginx 缓冲
-                'Cache-Control': 'no-cache', # 禁用浏览器/代理缓存
-                'Connection': 'keep-alive'  # 保持长连接
+                'Cache-Control': 'no-cache' # 禁用浏览器/代理缓存
             }
         )
     except Exception as e:
@@ -207,14 +208,14 @@ def smart_mindmap():
             )
             for chunk in generator:
                 yield chunk
+            yield STREAM_DONE_MARKER
 
         return Response(
             stream_with_context(generate()),
             content_type='text/event-stream; charset=utf-8',
             headers={
                 'X-Accel-Buffering': 'no',  # 禁用 Nginx 缓冲
-                'Cache-Control': 'no-cache', # 禁用浏览器/代理缓存
-                'Connection': 'keep-alive'  # 保持长连接
+                'Cache-Control': 'no-cache' # 禁用浏览器/代理缓存
             }
         )
     except Exception as e:
@@ -237,6 +238,7 @@ def generate_mindmap():
         def generate():
             for chunk in analysis_service.generate_mindmap(markdown_content):
                 yield chunk
+            yield STREAM_DONE_MARKER
                 
         return Response(
             stream_with_context(generate()),
@@ -295,6 +297,7 @@ def generate_proposal():
             )
             for chunk in generator:
                 yield chunk
+            yield STREAM_DONE_MARKER
 
         return Response(
             stream_with_context(generate()),
@@ -339,6 +342,7 @@ def generate_sub_proposal():
             )
             for chunk in generator:
                 yield chunk
+            yield STREAM_DONE_MARKER
 
         return Response(
             stream_with_context(generate()),

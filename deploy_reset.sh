@@ -150,12 +150,14 @@ if [ -d "$BLUEPRINT_DIR" ]; then
         cd "$BLUEPRINT_DIR/frontend"
         rm -rf node_modules dist
         
-        # 使用 VITE_BASE_URL 指定子路径，VITE_API_BASE_URL 指定 API 代理路径
-        # 注意：VITE_API_BASE_URL 必须包含 /blueprint 前缀，以便 Nginx 正确路由
+        # 使用 VITE_BASE_URL 指定子路径：
+        # - VITE_API_BASE_URL：蓝图大师后端统一走 api.tongzhilian.cn
+        # - VITE_SSE_API_BASE_URL：保持一致（流式接口同样走 api.tongzhilian.cn）
         docker run --rm \
             -v "$BLUEPRINT_DIR/frontend":/app \
             -w /app \
-            -e VITE_API_BASE_URL="/blueprint/api/v1" \
+            -e VITE_API_BASE_URL="https://api.tongzhilian.cn/api/v1" \
+            -e VITE_SSE_API_BASE_URL="https://api.tongzhilian.cn/api/v1" \
             node:20-alpine sh -c "
                 npm install && 
                 npm run build -- --base=/blueprint/
