@@ -60,8 +60,6 @@ def analyze():
         return jsonify({"code": 400, "message": "No selected file", "data": None}), 400
 
     try:
-        # 读取文件内容
-        file_content = file.read()
         file_name = file.filename
         
         # 准备日志数据
@@ -77,6 +75,10 @@ def analyze():
         
         # 定义生成器函数
         def generate():
+            yield "🔄 正在解析文档内容，请稍候...\n\n"
+
+            file_content = file.read()
+
             # 创建分析服务生成器
             generator = analysis_service.analyze_blueprint(
                 file_content, 
@@ -86,10 +88,8 @@ def analyze():
                 custom_methodologies
             )
             
-            # 1. 先获取并发送第一个chunk（初始状态），确保前端立即有响应
             try:
-                first_chunk = next(generator)
-                yield first_chunk
+                next(generator)
             except StopIteration:
                 return
             except Exception as e:
