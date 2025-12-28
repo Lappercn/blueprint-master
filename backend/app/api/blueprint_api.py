@@ -76,59 +76,60 @@ def analyze():
         
         # 定义生成器函数
         def generate():
-            yield "🔄 正在解析文档内容，请稍候...\n\n"
-
-            file_content = file.read()
-
-            # 创建分析服务生成器
-            generator = analysis_service.analyze_blueprint(
-                file_content, 
-                file_name, 
-                custom_prompt,
-                methodologies,
-                custom_methodologies
-            )
-            
             try:
-                next(generator)
-            except StopIteration:
-                return
-            except Exception as e:
-                logger.error(f"Error starting analysis: {str(e)}")
-                yield f"\n\n**系统错误**: {str(e)}"
-                return
+                yield "🔄 正在解析文档内容，请稍候...\n\n"
 
-            # 2. 异步或延迟记录日志（避免阻塞首屏响应）
-            # 将日志记录移到首个chunk发送之后
-            if user_id:
+                file_content = file.read()
+
+                generator = analysis_service.analyze_blueprint(
+                    file_content,
+                    file_name,
+                    custom_prompt,
+                    methodologies,
+                    custom_methodologies
+                )
+
+                first_chunk = None
                 try:
-                    mongo.db.usage_logs.insert_one(log_data)
-                    
-                    # 记录自定义书籍统计 (包含角色维度)
-                    if custom_methodologies:
-                         for book in custom_methodologies:
-                             if book and book.strip():
-                                 # 1. 更新总榜
-                                 mongo.db.book_stats.update_one(
-                                     {"book_name": book.strip(), "role": "all"},
-                                     {"$inc": {"count": 1}, "$set": {"last_used_at": datetime.utcnow()}},
-                                     upsert=True
-                                 )
-                                 # 2. 更新角色分榜
-                                 if role and role != 'unknown':
-                                     mongo.db.book_stats.update_one(
-                                         {"book_name": book.strip(), "role": role},
-                                         {"$inc": {"count": 1}, "$set": {"last_used_at": datetime.utcnow()}},
-                                         upsert=True
-                                     )
+                    first_chunk = next(generator)
+                except StopIteration:
+                    return
                 except Exception as e:
-                    # 日志记录失败不应影响业务
-                    logger.error(f"Failed to log usage: {str(e)}")
+                    logger.error(f"Error starting analysis: {str(e)}")
+                    yield f"\n\n**系统错误**: {str(e)}"
+                    return
 
-            # 3. 继续发送剩余内容
-            for chunk in generator:
-                yield chunk
-            yield STREAM_DONE_MARKER
+                if first_chunk and first_chunk.strip() != "🔄 正在解析文档内容，请稍候...":
+                    yield first_chunk
+
+                if user_id:
+                    try:
+                        mongo.db.usage_logs.insert_one(log_data)
+
+                        if custom_methodologies:
+                            for book in custom_methodologies:
+                                if book and book.strip():
+                                    mongo.db.book_stats.update_one(
+                                        {"book_name": book.strip(), "role": "all"},
+                                        {"$inc": {"count": 1}, "$set": {"last_used_at": datetime.utcnow()}},
+                                        upsert=True
+                                    )
+                                    if role and role != 'unknown':
+                                        mongo.db.book_stats.update_one(
+                                            {"book_name": book.strip(), "role": role},
+                                            {"$inc": {"count": 1}, "$set": {"last_used_at": datetime.utcnow()}},
+                                            upsert=True
+                                        )
+                    except Exception as e:
+                        logger.error(f"Failed to log usage: {str(e)}")
+
+                for chunk in generator:
+                    yield chunk
+            except Exception as e:
+                logger.error(f"Error during analysis stream: {str(e)}")
+                yield f"\n\n**系统错误**: {str(e)}"
+            finally:
+                yield STREAM_DONE_MARKER
 
         # 返回流式响应
         return Response(
@@ -163,13 +164,18 @@ def analyze_mindmap():
         file_name = file.filename
         
         def generate():
-            generator = analysis_service.analyze_blueprint_to_mindmap(
-                file_content, 
-                file_name
-            )
-            for chunk in generator:
-                yield chunk
-            yield STREAM_DONE_MARKER
+            try:
+                generator = analysis_service.analyze_blueprint_to_mindmap(
+                    file_content,
+                    file_name
+                )
+                for chunk in generator:
+                    yield chunk
+            except Exception as e:
+                logger.error(f"Error during mindmap analysis stream: {str(e)}")
+                yield f"\n\n**系统错误**: {str(e)}"
+            finally:
+                yield STREAM_DONE_MARKER
 
         return Response(
             stream_with_context(generate()),
@@ -202,13 +208,18 @@ def smart_mindmap():
         file_name = file.filename
         
         def generate():
-            generator = analysis_service.generate_smart_mindmap(
-                file_content, 
-                file_name
-            )
-            for chunk in generator:
-                yield chunk
-            yield STREAM_DONE_MARKER
+            try:
+                generator = analysis_service.generate_smart_mindmap(
+                    file_content,
+                    file_name
+                )
+                for chunk in generator:
+                    yield chunk
+            except Exception as e:
+                logger.error(f"Error during smart mindmap stream: {str(e)}")
+                yield f"\n\n**系统错误**: {str(e)}"
+            finally:
+                yield STREAM_DONE_MARKER
 
         return Response(
             stream_with_context(generate()),
@@ -236,13 +247,22 @@ def generate_mindmap():
         
     try:
         def generate():
-            for chunk in analysis_service.generate_mindmap(markdown_content):
-                yield chunk
-            yield STREAM_DONE_MARKER
+            try:
+                for chunk in analysis_service.generate_mindmap(markdown_content):
+                    yield chunk
+            except Exception as e:
+                logger.error(f"Error during mindmap generation stream: {str(e)}")
+                yield f"\n\n**系统错误**: {str(e)}"
+            finally:
+                yield STREAM_DONE_MARKER
                 
         return Response(
             stream_with_context(generate()),
-            content_type='text/event-stream; charset=utf-8'
+            content_type='text/event-stream; charset=utf-8',
+            headers={
+                'X-Accel-Buffering': 'no',
+                'Cache-Control': 'no-cache'
+            }
         )
     except Exception as e:
         logger.error(f"Mindmap API Error: {str(e)}")
@@ -287,21 +307,30 @@ def generate_proposal():
             reference_file_name = reference_file.filename
 
         def generate():
-            generator = analysis_service.generate_proposal(
-                client_needs,
-                user_ideas,
-                methodologies,
-                custom_methodologies,
-                reference_file_content,
-                reference_file_name
-            )
-            for chunk in generator:
-                yield chunk
-            yield STREAM_DONE_MARKER
+            try:
+                generator = analysis_service.generate_proposal(
+                    client_needs,
+                    user_ideas,
+                    methodologies,
+                    custom_methodologies,
+                    reference_file_content,
+                    reference_file_name
+                )
+                for chunk in generator:
+                    yield chunk
+            except Exception as e:
+                logger.error(f"Error during proposal generation stream: {str(e)}")
+                yield f"\n\n**系统错误**: {str(e)}"
+            finally:
+                yield STREAM_DONE_MARKER
 
         return Response(
             stream_with_context(generate()),
-            content_type='text/event-stream; charset=utf-8'
+            content_type='text/event-stream; charset=utf-8',
+            headers={
+                'X-Accel-Buffering': 'no',
+                'Cache-Control': 'no-cache'
+            }
         )
     except Exception as e:
         logger.error(f"Error starting proposal generation: {str(e)}")
@@ -332,21 +361,30 @@ def generate_sub_proposal():
         parent_file_name = parent_file.filename
 
         def generate():
-            generator = analysis_service.generate_sub_proposal(
-                parent_file_content,
-                parent_file_name,
-                sub_plan_title,
-                sub_plan_details,
-                methodologies,
-                custom_methodologies
-            )
-            for chunk in generator:
-                yield chunk
-            yield STREAM_DONE_MARKER
+            try:
+                generator = analysis_service.generate_sub_proposal(
+                    parent_file_content,
+                    parent_file_name,
+                    sub_plan_title,
+                    sub_plan_details,
+                    methodologies,
+                    custom_methodologies
+                )
+                for chunk in generator:
+                    yield chunk
+            except Exception as e:
+                logger.error(f"Error during sub proposal generation stream: {str(e)}")
+                yield f"\n\n**系统错误**: {str(e)}"
+            finally:
+                yield STREAM_DONE_MARKER
 
         return Response(
             stream_with_context(generate()),
-            content_type='text/event-stream; charset=utf-8'
+            content_type='text/event-stream; charset=utf-8',
+            headers={
+                'X-Accel-Buffering': 'no',
+                'Cache-Control': 'no-cache'
+            }
         )
     except Exception as e:
         logger.error(f"Error starting sub proposal generation: {str(e)}")

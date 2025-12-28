@@ -5,6 +5,8 @@
 依赖模块：openai
 """
 import logging
+import queue
+import threading
 from typing import List, Dict, Generator, Any
 from openai import OpenAI
 
@@ -42,16 +44,45 @@ class LLMClient:
         """
         try:
             logger.info(f"Sending request to LLM model: {self.model}")
-            stream = self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                stream=True,
-                temperature=temperature
-            )
-            
-            for chunk in stream:
-                if chunk.choices and chunk.choices[0].delta.content:
-                    yield chunk.choices[0].delta.content
+            output_queue: "queue.Queue[object]" = queue.Queue()
+            done_sentinel = object()
+
+            def run_llm_stream():
+                try:
+                    stream = self.client.chat.completions.create(
+                        model=self.model,
+                        messages=messages,
+                        stream=True,
+                        temperature=temperature
+                    )
+
+                    for chunk in stream:
+                        if chunk.choices and chunk.choices[0].delta.content:
+                            output_queue.put(chunk.choices[0].delta.content)
+                    output_queue.put(done_sentinel)
+                except Exception as e:
+                    output_queue.put(e)
+
+            t = threading.Thread(target=run_llm_stream, daemon=True)
+            t.start()
+
+            while True:
+                try:
+                    item = output_queue.get(timeout=2.0)
+                except queue.Empty:
+                    if not t.is_alive():
+                        break
+                    yield "\n\n"
+                    continue
+
+                if item is done_sentinel:
+                    break
+
+                if isinstance(item, Exception):
+                    raise item
+
+                if isinstance(item, str) and item:
+                    yield item
                     
         except Exception as e:
             logger.error(f"LLM request failed: {str(e)}")
