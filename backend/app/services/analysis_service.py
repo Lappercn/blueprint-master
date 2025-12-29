@@ -8,6 +8,7 @@
 依赖模块：ocr_client, llm_client, config
 """
 import logging
+import re
 from typing import Generator, List
 from app.config import Config
 from app.utils.ocr_client import OCRClient
@@ -191,6 +192,72 @@ class AnalysisService:
             model=Config.LLM_MODEL
         )
 
+    def _compress_methodology_text(self, text: str, max_chars: int) -> str:
+        if not text:
+            return ""
+        normalized = text.replace("\r\n", "\n").replace("\r", "\n")
+        normalized = re.sub(r"\n{3,}", "\n\n", normalized)
+        if len(normalized) <= max_chars:
+            return normalized
+        lines = []
+        total = 0
+        for line in normalized.splitlines():
+            s = line.strip()
+            keep = (
+                s == ""
+                or s.startswith("###")
+                or s.startswith("*")
+                or s.startswith("-")
+                or s.startswith("1.")
+                or s.startswith("2.")
+                or s.startswith("3.")
+            )
+            if not keep:
+                continue
+            if total + len(line) + 1 > max_chars:
+                break
+            lines.append(line)
+            total += len(line) + 1
+        compact = "\n".join(lines).strip()
+        if not compact:
+            compact = normalized[:max_chars]
+        return compact[:max_chars]
+
+    def _compress_context_text(self, text: str, max_chars: int) -> tuple[str, bool]:
+        if not text:
+            return "", False
+
+        original_len = len(text)
+        t = text.replace("\r\n", "\n").replace("\r", "\n")
+        t = re.sub(r"[ \t]+", " ", t)
+        t = re.sub(r"\n{3,}", "\n\n", t)
+        t = re.sub(r"```[\s\S]{2000,}?```", "```(已省略超长代码块)```", t)
+
+        if len(t) <= max_chars:
+            return t, len(t) != original_len
+
+        lines = t.splitlines()
+        heading_indexes: List[int] = []
+        for i, line in enumerate(lines):
+            s = line.strip()
+            if s.startswith("#"):
+                heading_indexes.append(i)
+
+        keep_line_indexes = set()
+        for i in heading_indexes[:200]:
+            for j in range(i, min(i + 6, len(lines))):
+                keep_line_indexes.add(j)
+
+        extracted_lines = [lines[i] for i in range(len(lines)) if i in keep_line_indexes]
+        extracted = "\n".join(extracted_lines).strip()
+
+        head = t[:8000]
+        tail = t[-2000:] if len(t) > 2000 else ""
+        combined = "\n\n".join([p for p in [head.strip(), extracted, tail.strip()] if p])
+        combined = re.sub(r"\n{3,}", "\n\n", combined)
+        combined = combined[:max_chars]
+        return combined, True
+
     def analyze_blueprint(self, file_content: bytes, file_name: str, custom_prompt: str = "", selected_methodologies: List[str] = None, custom_methodologies: List[str] = None) -> Generator[str, None, None]:
         """
         分析蓝图文件
@@ -263,7 +330,11 @@ class AnalysisService:
             logger.info("OCR completed, constructing prompt...")
 
             # 2. 构建提示词
-            prompt_messages = self._build_prompt(ocr_text, custom_prompt, selected_methodologies, custom_methodologies)
+            compressed_text, compressed = self._compress_context_text(ocr_text, max_chars=18000)
+            if compressed:
+                yield "📉 文档内容较长，已自动提炼关键内容以适配模型上下文限制。\n\n"
+
+            prompt_messages = self._build_prompt(compressed_text, custom_prompt, selected_methodologies, custom_methodologies)
             logger.info(f"Prompt constructed with {len(prompt_messages)} messages")
 
             # 3. LLM 流式分析
@@ -489,7 +560,10 @@ class AnalysisService:
             if user_ideas and user_ideas.strip():
                 ideas_parts.append(user_ideas.strip())
             if reference_text and reference_text.strip():
-                ideas_parts.append(f"### 参考资料附件：{reference_file_name}\n{reference_text.strip()}")
+                compressed_ref, compressed = self._compress_context_text(reference_text.strip(), max_chars=12000)
+                if compressed:
+                    yield "📉 参考资料较长，已自动提炼关键内容以适配模型上下文限制。\n\n"
+                ideas_parts.append(f"### 参考资料附件：{reference_file_name}\n{compressed_ref}")
 
             merged_user_ideas = "\n\n".join(ideas_parts)
 
@@ -518,7 +592,11 @@ class AnalysisService:
 
             yield "🔄 正在生成子专项方案，请稍候...\n\n"
 
-            prompt_messages = self._build_sub_proposal_prompt(parent_text, parent_file_name, sub_topic, user_ideas, selected_methodologies, custom_methodologies)
+            compressed_parent, compressed = self._compress_context_text(parent_text, max_chars=18000)
+            if compressed:
+                yield "📉 父方案内容较长，已自动提炼关键内容以适配模型上下文限制。\n\n"
+
+            prompt_messages = self._build_sub_proposal_prompt(compressed_parent, parent_file_name, sub_topic, user_ideas, selected_methodologies, custom_methodologies)
             logger.info(f"Sub proposal prompt constructed with {len(prompt_messages)} messages")
 
             for chunk in self.llm_client.chat_stream(prompt_messages):
@@ -550,6 +628,8 @@ class AnalysisService:
             for cm in custom_methodologies:
                 if cm.strip():
                     methodology_text += f"*   📖 **{cm}**\n"
+
+        methodology_text = self._compress_methodology_text(methodology_text, max_chars=8000)
 
         system_prompt = f"""
         你是一位**资深解决方案架构师**。
@@ -625,6 +705,8 @@ class AnalysisService:
             for cm in custom_methodologies:
                 if cm.strip():
                     methodology_text += f"*   📖 **{cm}**\n"
+
+        methodology_text = self._compress_methodology_text(methodology_text, max_chars=8000)
 
         system_prompt = f"""
         你是一位**首席解决方案架构师**和**创意总监**。
@@ -729,6 +811,8 @@ class AnalysisService:
             for cm in custom_methodologies:
                 if cm.strip():
                     methodology_text += f"*   📖 **{cm}**\n"
+
+        methodology_text = self._compress_methodology_text(methodology_text, max_chars=8000)
 
         system_prompt = f"""
 你是一位**蓝图大师 (Blueprint Master)**，一位拥有20年实战经验的企业级架构治理专家。
