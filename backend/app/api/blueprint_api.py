@@ -14,6 +14,7 @@ from app.services.analysis_service import AnalysisService
 from app.extensions import mongo
 from app.utils.docx_generator import generate_blueprint_docx
 from datetime import datetime
+from bson import ObjectId
 import logging
 import urllib.parse
 
@@ -25,6 +26,52 @@ STREAM_DONE_MARKER = "\n\n[[__STREAM_DONE__]]\n\n"
 # 初始化 Service
 # 注意：在实际生产中，建议使用依赖注入或在请求上下文中获取
 analysis_service = AnalysisService()
+
+def _build_preview(text: str, max_len: int = 400) -> str:
+    if not text:
+        return ""
+    t = text.strip()
+    if len(t) <= max_len:
+        return t
+    return t[:max_len] + "..."
+
+def _save_analysis_history(
+    *,
+    user_id: str,
+    username: str,
+    role: str,
+    file_name: str,
+    custom_prompt: str,
+    methodologies: list,
+    custom_methodologies: list,
+    content: str
+):
+    if not user_id:
+        return
+
+    safe_content = content or ""
+    truncated = False
+    max_chars = 2_000_000
+    if len(safe_content) > max_chars:
+        safe_content = safe_content[:max_chars]
+        truncated = True
+
+    doc = {
+        "user_id": user_id,
+        "username": username,
+        "role": role,
+        "action": "analyze_blueprint",
+        "filename": file_name,
+        "custom_prompt": custom_prompt,
+        "methodologies": methodologies or [],
+        "custom_methodologies": custom_methodologies or [],
+        "content": safe_content,
+        "content_preview": _build_preview(safe_content),
+        "content_length": len(content or ""),
+        "content_truncated": truncated,
+        "created_at": datetime.utcnow()
+    }
+    mongo.db.analysis_histories.insert_one(doc)
 
 @blueprint_bp.route('/analyze', methods=['POST'])
 def analyze():
@@ -76,6 +123,7 @@ def analyze():
         
         # 定义生成器函数
         def generate():
+            captured_chunks = []
             try:
                 yield "🔄 正在解析文档内容，请稍候...\n\n"
 
@@ -101,6 +149,7 @@ def analyze():
 
                 if first_chunk and first_chunk.strip() != "🔄 正在解析文档内容，请稍候...":
                     yield first_chunk
+                    captured_chunks.append(first_chunk)
 
                 if user_id:
                     try:
@@ -125,10 +174,30 @@ def analyze():
 
                 for chunk in generator:
                     yield chunk
+                    if chunk:
+                        captured_chunks.append(chunk)
             except Exception as e:
                 logger.error(f"Error during analysis stream: {str(e)}")
-                yield f"\n\n**系统错误**: {str(e)}"
+                err_chunk = f"\n\n**系统错误**: {str(e)}"
+                yield err_chunk
+                captured_chunks.append(err_chunk)
             finally:
+                if user_id:
+                    try:
+                        content = "".join(captured_chunks).replace(STREAM_DONE_MARKER, "")
+                        if content.strip():
+                            _save_analysis_history(
+                                user_id=user_id,
+                                username=username,
+                                role=role,
+                                file_name=file_name,
+                                custom_prompt=custom_prompt,
+                                methodologies=methodologies,
+                                custom_methodologies=custom_methodologies,
+                                content=content
+                            )
+                    except Exception as e:
+                        logger.error(f"Failed to save analysis history: {str(e)}")
                 yield STREAM_DONE_MARKER
 
         # 返回流式响应
@@ -144,6 +213,93 @@ def analyze():
     except Exception as e:
         logger.error(f"API Error: {str(e)}")
         return jsonify({"code": 500, "message": str(e), "data": None}), 500
+
+@blueprint_bp.route('/history', methods=['GET'])
+def get_history_list():
+    user_id = request.args.get('user_id')
+    if not user_id:
+        return jsonify({"code": 400, "message": "user_id is required", "data": None}), 400
+
+    try:
+        page = int(request.args.get('page', 1))
+        page_size = int(request.args.get('page_size', 10))
+        if page < 1:
+            page = 1
+        if page_size < 1:
+            page_size = 10
+        page_size = min(page_size, 50)
+    except Exception:
+        page = 1
+        page_size = 10
+
+    query = {"user_id": user_id}
+    total = mongo.db.analysis_histories.count_documents(query)
+    cursor = (
+        mongo.db.analysis_histories.find(
+            query,
+            {
+                "content": 0
+            }
+        )
+        .sort("created_at", -1)
+        .skip((page - 1) * page_size)
+        .limit(page_size)
+    )
+
+    items = []
+    for doc in cursor:
+        items.append({
+            "id": str(doc.get("_id")),
+            "action": doc.get("action"),
+            "filename": doc.get("filename"),
+            "role": doc.get("role"),
+            "created_at": doc.get("created_at").isoformat() if doc.get("created_at") else None,
+            "content_preview": doc.get("content_preview", ""),
+            "content_length": doc.get("content_length", 0),
+            "content_truncated": doc.get("content_truncated", False)
+        })
+
+    return jsonify({
+        "code": 200,
+        "message": "success",
+        "data": {
+            "items": items,
+            "total": total,
+            "page": page,
+            "page_size": page_size
+        }
+    })
+
+@blueprint_bp.route('/history/<history_id>', methods=['GET'])
+def get_history_detail(history_id: str):
+    user_id = request.args.get('user_id')
+    if not user_id:
+        return jsonify({"code": 400, "message": "user_id is required", "data": None}), 400
+
+    try:
+        oid = ObjectId(history_id)
+    except Exception:
+        return jsonify({"code": 400, "message": "invalid history_id", "data": None}), 400
+
+    doc = mongo.db.analysis_histories.find_one({"_id": oid, "user_id": user_id})
+    if not doc:
+        return jsonify({"code": 404, "message": "not found", "data": None}), 404
+
+    data = {
+        "id": str(doc.get("_id")),
+        "action": doc.get("action"),
+        "filename": doc.get("filename"),
+        "role": doc.get("role"),
+        "created_at": doc.get("created_at").isoformat() if doc.get("created_at") else None,
+        "custom_prompt": doc.get("custom_prompt", ""),
+        "methodologies": doc.get("methodologies", []),
+        "custom_methodologies": doc.get("custom_methodologies", []),
+        "content": doc.get("content", ""),
+        "content_length": doc.get("content_length", 0),
+        "content_truncated": doc.get("content_truncated", False)
+    }
+
+    return jsonify({"code": 200, "message": "success", "data": data})
 
 @blueprint_bp.route('/analyze_mindmap', methods=['POST'])
 def analyze_mindmap():
