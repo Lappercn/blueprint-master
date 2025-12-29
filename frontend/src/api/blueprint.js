@@ -12,6 +12,9 @@ export const analyzeBlueprintStream = async (file, customPrompt, methodologies, 
   if (userInfo) {
     formData.append('user_id', userInfo.user_id)
     formData.append('username', userInfo.username)
+    if (userInfo.role) {
+      formData.append('role', userInfo.role)
+    }
   }
   
   if (methodologies && methodologies.length > 0) {
@@ -80,6 +83,44 @@ export const analyzeBlueprintStream = async (file, customPrompt, methodologies, 
     if (onError) onError(error)
     console.error('Stream error:', error)
   }
+}
+
+export const getAnalysisHistory = async (userId, page = 1, pageSize = 10) => {
+  const params = new URLSearchParams()
+  params.set('user_id', userId)
+  params.set('page', String(page))
+  params.set('page_size', String(pageSize))
+
+  const response = await fetch(`${BASE_URL}/blueprint/history?${params.toString()}`, {
+    method: 'GET'
+  })
+
+  const data = await response.json().catch(() => null)
+  if (!response.ok) {
+    throw new Error((data && data.message) || `HTTP error! status: ${response.status}`)
+  }
+  if (!data || data.code !== 200) {
+    throw new Error((data && data.message) || 'Failed to fetch history')
+  }
+  return data
+}
+
+export const getAnalysisHistoryDetail = async (userId, historyId) => {
+  const params = new URLSearchParams()
+  params.set('user_id', userId)
+
+  const response = await fetch(`${BASE_URL}/blueprint/history/${historyId}?${params.toString()}`, {
+    method: 'GET'
+  })
+
+  const data = await response.json().catch(() => null)
+  if (!response.ok) {
+    throw new Error((data && data.message) || `HTTP error! status: ${response.status}`)
+  }
+  if (!data || data.code !== 200) {
+    throw new Error((data && data.message) || 'Failed to fetch history detail')
+  }
+  return data
 }
 
 export const exportDocx = async (content, filename) => {

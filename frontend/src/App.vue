@@ -19,6 +19,9 @@
                <el-button type="warning" link @click="showDashboardDialog = true">
                  <el-icon><DataLine /></el-icon> 看板
                </el-button>
+               <el-button type="success" link @click="showHistoryDialog = true">
+                 <el-icon><Notebook /></el-icon> 历史
+               </el-button>
                <el-button type="primary" link @click="showFeedbackDialog = true">
                  <el-icon><ChatDotSquare /></el-icon> 反馈
                </el-button>
@@ -40,6 +43,10 @@
               <div class="hero-text">
                 <h2>数字化转型，从一份靠谱的蓝图开始</h2>
                 <p>上传文档进行深度评审，或输入需求直接生成蓝图方案</p>
+              </div>
+              
+              <div class="home-widgets">
+                <PopularBooks />
               </div>
 
               <el-card class="upload-card" shadow="hover">
@@ -496,6 +503,17 @@
       <Dashboard v-if="showDashboardDialog" />
     </el-dialog>
 
+    <!-- 历史弹窗 -->
+    <el-dialog
+      v-model="showHistoryDialog"
+      title="分析历史"
+      width="90%"
+      class="responsive-dialog"
+      align-center
+    >
+      <HistoryDialog v-if="showHistoryDialog" :user="currentUser" @open="handleHistoryOpen" />
+    </el-dialog>
+
     <!-- 反馈弹窗 -->
     <el-dialog
       v-model="showFeedbackDialog"
@@ -535,6 +553,8 @@ import { login } from './api/auth'
 import { submitFeedback } from './api/feedback'
 import Dashboard from './components/Dashboard.vue'
 import MindMapViewer from './components/MindMapViewer.vue'
+import HistoryDialog from './components/HistoryDialog.vue'
+import PopularBooks from './components/PopularBooks.vue'
 
 const md = new MarkdownIt({
   html: true,
@@ -717,6 +737,14 @@ const feedbackLoading = ref(false)
 
 // 仪表盘状态
 const showDashboardDialog = ref(false)
+const showHistoryDialog = ref(false)
+
+const handleHistoryOpen = ({ content }) => {
+  if (typeof content === 'string') {
+    result.value = content
+  }
+  showHistoryDialog.value = false
+}
 
 const renderedMarkdown = computed(() => {
   return md.render(result.value)
@@ -1854,6 +1882,12 @@ body {
 .hero-text p {
   font-size: clamp(13px, 1.4vw, 15px);
   color: #606266;
+}
+
+.home-widgets {
+  width: 100%;
+  max-width: 900px;
+  align-self: center;
 }
 
 .upload-card {
