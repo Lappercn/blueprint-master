@@ -297,11 +297,11 @@
                          <div class="section-label-row">
                           <div class="section-label">
                             <el-icon><User /></el-icon>
-                            <span>我是谁？(点击角色自动匹配场景)</span>
+                            <span>选择部门（自动匹配场景 & 默认书单）</span>
                           </div>
                         </div>
-                        <el-radio-group v-model="selectedRole" @change="handleRoleChange" class="role-group">
-                          <el-radio-button v-for="(cfg, key) in rolePresets" :key="key" :label="key" :value="key">
+                        <el-radio-group v-model="selectedDepartment" @change="handleDepartmentChange" class="role-group">
+                          <el-radio-button v-for="(cfg, key) in departmentPresets" :key="key" :label="key" :value="key">
                             <div class="role-item">
                               <span class="role-name">{{ cfg.label }}</span>
                             </div>
@@ -331,29 +331,12 @@
                             <span v-if="!node.isLeaf" style="color: #999; font-size: 12px; margin-left: 5px;">({{ data.children.length }})</span>
                           </template>
                         </el-cascader>
-                        
-                        <div class="custom-methodology-input">
-                        <el-input
-                          v-model="newCustomMethodology"
-                          placeholder="输入自定义参考书籍 (如: 《定位》、《增长黑客》...)"
-                          class="input-with-select"
-                          @keyup.enter="addCustomMethodology"
-                        >
-                          <template #append>
-                            <el-button @click="addCustomMethodology">
-                              <el-icon><Plus /></el-icon> 添加书籍
-                            </el-button>
-                          </template>
-                        </el-input>
-                      </div>
-                      
-                      <div class="custom-methodology-tags" v-if="customMethodologies.length > 0">
+
+                      <div class="custom-methodology-tags" v-if="departmentBooks.length > 0">
                         <el-tag
-                          v-for="tag in customMethodologies"
+                          v-for="tag in departmentBooks"
                           :key="tag"
-                          closable
                           :disable-transitions="false"
-                          @close="removeCustomMethodology(tag)"
                           class="custom-tag"
                           effect="plain"
                         >
@@ -542,7 +525,7 @@
 
 <script setup>
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
-import { UploadFilled, Monitor, Loading, ChatLineRound, RefreshLeft, Download, CircleCheckFilled, Collection, Plus, User, ChatDotSquare, SwitchButton, Document, VideoPause, Notebook, DataLine, Connection, CircleClose, ArrowRight, Picture, MagicStick, Aim, Opportunity } from '@element-plus/icons-vue'
+import { UploadFilled, Monitor, Loading, ChatLineRound, RefreshLeft, Download, CircleCheckFilled, Collection, User, ChatDotSquare, SwitchButton, Document, VideoPause, Notebook, DataLine, Connection, CircleClose, ArrowRight, Picture, MagicStick, Aim, Opportunity } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import MarkdownIt from 'markdown-it'
 import mermaid from 'mermaid'
@@ -568,11 +551,9 @@ const result = ref('')
 const customPrompt = ref('')
 // 默认选中华为的战略层
 const selectedMethodologies = ref([['huawei', 'strategy']])
-const newCustomMethodology = ref('')
-const customMethodologies = ref([])
 const exporting = ref(false)
 const abortController = ref(null)
-const selectedRole = ref('')
+const selectedDepartment = ref('president_office')
 const showMindmapDialog = ref(false)
 const mindmapContent = ref('')
 const generatingMindmap = ref(false)
@@ -590,8 +571,100 @@ const subPlanTitle = ref('')
 const subPlanDetails = ref('')
 const mindmapPurpose = ref('')
 
+const departmentPresets = {
+  president_office: {
+    label: '总裁办',
+    desc: '公司战略与经营决策',
+    presets: [['huawei', 'strategy']],
+    books: [
+      '发现利润区（亚德里安·斯莱沃斯基）',
+      '创新跃迁（迈克尔·塔什曼 / 查尔斯·奥赖利）',
+      '华为战略管理法：DSTE实战体系（谢宁）',
+      'BEM方法论',
+      '金字塔原理'
+    ]
+  },
+  war_zone: {
+    label: '战区 (作战/客户部)',
+    desc: '市场拓展与客户经营',
+    presets: [['huawei', 'marketing']],
+    books: [
+      '华为营销铁军（人邮普华出品）',
+      '华为规模营销法',
+      'BEM方法论'
+    ]
+  },
+  product_solution: {
+    label: '产品与解决方案部',
+    desc: '产品研发与解决方案构建',
+    presets: [['huawei', 'product_dev']],
+    books: [
+      '从偶然到必然：华为研发投资与管理实践（升级版）（夏忠毅）',
+      'BEM方法论'
+    ]
+  },
+  supply_delivery: {
+    label: '供应与交付部',
+    desc: '供应链管理与项目交付',
+    presets: [['huawei', 'project_delivery'], ['huawei', 'issue_mgmt']],
+    books: [
+      '供应链交付战法+供应铁军（袁建东）',
+      '华为项目管理之道',
+      'BEM方法论'
+    ]
+  },
+  process_it: {
+    label: '流程质量与IT部',
+    desc: '数字化转型与流程建设',
+    presets: [['huawei', 'digital_transformation']],
+    books: [
+      '华为数字化转型之道',
+      '华为数据之道',
+      'BEM方法论'
+    ]
+  },
+  finance_audit: {
+    label: '财经与审计部',
+    desc: '财经管理与经营分析',
+    presets: [['huawei', 'finance_mgmt']],
+    books: [
+      '华为财经密码',
+      '打赢年度经营大战（向国）',
+      'BEM方法论'
+    ]
+  },
+  hr: {
+    label: '人力资源部',
+    desc: '组织建设与人才发展',
+    presets: [['huawei', 'strategy']],
+    books: [
+      '以奋斗者为本',
+      '熵减：华为活力之源',
+      '理念 制度 人',
+      '卓越组织的原动力（田涛）',
+      '在悖论中前进'
+    ]
+  },
+  general: {
+    label: '通用/其他',
+    desc: '全员通用方法论',
+    presets: [['huawei', 'strategy']],
+    books: [
+      '价值为纲',
+      '华为战略管理法：DSTE实战体系（谢宁）',
+      'BEM方法论'
+    ]
+  }
+}
+
+const departmentBooks = computed(() => {
+  const d = selectedDepartment.value
+  if (d && departmentPresets[d]) return departmentPresets[d].books || []
+  return []
+})
+
 const hasMethodologyBasis = computed(() => {
-  return selectedMethodologies.value.length > 0 || customMethodologies.value.length > 0
+  return selectedMethodologies.value.length > 0 || departmentBooks.value.length > 0
 })
 
 const ensureMethodologyBasis = (message) => {
@@ -629,61 +702,11 @@ const mindmapDownloadName = computed(() => {
   return '蓝图大师方案导图.png'
 })
 
-// 角色预设配置
-const rolePresets = {
-  'cxo': {
-    label: 'CEO/高管 (CXO)',
-    desc: '关注战略落地与数字化转型',
-    presets: [['huawei', 'strategy'], ['huawei', 'digital_transformation']]
-  },
-  'ar': {
-    label: '客户经理 (AR)',
-    desc: '铁三角-客户关系负责',
-    presets: [['huawei', 'marketing'], ['huawei', 'project_delivery']]
-  },
-  'sr': {
-    label: '解决方案专家 (SR)',
-    desc: '铁三角-方案与技术负责',
-    presets: [['huawei', 'project_delivery'], ['huawei', 'product_dev']]
-  },
-  'fr': {
-    label: '交付经理 (FR)',
-    desc: '铁三角-项目交付与履约',
-    presets: [['huawei', 'project_delivery'], ['huawei', 'issue_mgmt']]
-  },
-  'pdt': {
-    label: 'PDT经理 (Product)',
-    desc: '关注产品全生命周期管理',
-    presets: [['huawei', 'product_dev']]
-  },
-  'cfo': {
-    label: 'CFO/财经 (Finance)',
-    desc: '关注全面预算与业财融合',
-    presets: [['huawei', 'finance_mgmt']]
-  },
-  'supply': {
-    label: '供应链 (Supply Chain)',
-    desc: '关注计划/采购/制造流程',
-    presets: [['huawei', 'issue_mgmt']] // 暂时映射到ITR，后续可扩展ISC
-  },
-  'hr': {
-    label: 'HR/政委 (HR)',
-    desc: '关注组织与人才发展',
-    presets: [['huawei', 'strategy']] // 暂时映射到BLM中的组织部分
-  },
-  'cio': {
-    label: 'CIO/IT总监',
-    desc: '关注技术架构与标准规范',
-    presets: [['huawei', 'digital_transformation'], ['general', 'enterprise_arch']]
-  }
-}
-
-const handleRoleChange = (role) => {
-  if (role && rolePresets[role]) {
-    selectedMethodologies.value = rolePresets[role].presets
-    // 自动更新 selectedRole 状态
-    selectedRole.value = role
-    ElMessage.success(`已切换至【${rolePresets[role].label}】评审视角`)
+const handleDepartmentChange = (dept) => {
+  if (dept && departmentPresets[dept]) {
+    selectedMethodologies.value = departmentPresets[dept].presets
+    selectedDepartment.value = dept
+    ElMessage.success(`已切换至【${departmentPresets[dept].label}】视角`)
   }
 }
 
@@ -903,22 +926,6 @@ const handleFeedback = async () => {
   }
 }
 
-const addCustomMethodology = () => {
-  const val = newCustomMethodology.value.trim()
-  if (val) {
-    if (!customMethodologies.value.includes(val)) {
-      customMethodologies.value.push(val)
-      newCustomMethodology.value = ''
-    } else {
-      ElMessage.warning('该方法论已添加')
-    }
-  }
-}
-
-const removeCustomMethodology = (tag) => {
-  customMethodologies.value = customMethodologies.value.filter(m => m !== tag)
-}
-
 const stopAnalysis = () => {
   if (abortController.value) {
     abortController.value.abort()
@@ -967,7 +974,7 @@ const clearParentPlanFile = () => {
 
 const startDiagnosisMindmap = async () => {
   if (!currentFile.value) return
-  if (!ensureMethodologyBasis('请至少选择系统内置方法论或添加书籍作为评审依据')) return
+  if (!ensureMethodologyBasis('请至少选择系统内置方法论')) return
   if (!currentUser.value) {
     showLoginDialog.value = true
     return
@@ -985,6 +992,7 @@ const startDiagnosisMindmap = async () => {
     let isFirstChunk = true
     await analyzeBlueprintToMindmapStream(
       currentFile.value,
+      selectedDepartment.value,
       (chunk) => {
         if (isFirstChunk) {
             mindmapContent.value = chunk
@@ -1013,7 +1021,7 @@ const startDiagnosisMindmap = async () => {
 
 const startSmartMindmap = async () => {
   if (!currentFile.value) return
-  if (!ensureMethodologyBasis('请至少选择系统内置方法论或添加书籍作为评审依据')) return
+  if (!ensureMethodologyBasis('请至少选择系统内置方法论')) return
   if (!currentUser.value) {
     showLoginDialog.value = true
     return
@@ -1031,6 +1039,7 @@ const startSmartMindmap = async () => {
     let isFirstChunk = true
     await generateSmartMindmapStream(
       currentFile.value,
+      selectedDepartment.value,
       (chunk) => {
         if (isFirstChunk) {
             mindmapContent.value = chunk
@@ -1058,7 +1067,7 @@ const startSmartMindmap = async () => {
 }
 
 const startAnalysis = async (file) => {
-  if (!ensureMethodologyBasis('请至少选择系统内置方法论或添加书籍作为评审依据')) return
+  if (!ensureMethodologyBasis('请至少选择系统内置方法论')) return
 
   if (!currentUser.value) {
     showLoginDialog.value = true
@@ -1079,17 +1088,17 @@ const startAnalysis = async (file) => {
     return item
   })
   
-  // 准备用户信息（包含角色）
+  // 准备用户信息（包含部门）
   const userInfoWithRole = {
     ...currentUser.value,
-    role: selectedRole.value // 将当前选择的角色传递给后端
+    role: selectedDepartment.value
   }
 
   await analyzeBlueprintStream(
     file,
     customPrompt.value,
     formattedMethodologies,
-    customMethodologies.value,
+    departmentBooks.value,
     userInfoWithRole,
     abortController.value.signal,
     (chunk) => {
@@ -1121,7 +1130,7 @@ const startProposalGeneration = async () => {
         return
     }
     
-    if (!ensureMethodologyBasis('请至少选择系统内置方法论或添加书籍作为设计依据')) return
+    if (!ensureMethodologyBasis('请至少选择系统内置方法论')) return
     
     if (!currentUser.value) {
         showLoginDialog.value = true
@@ -1144,7 +1153,8 @@ const startProposalGeneration = async () => {
         clientNeeds.value,
         userIdeas.value,
         formattedMethodologies,
-        customMethodologies.value,
+        departmentBooks.value,
+        selectedDepartment.value,
         referenceFile.value,
         (chunk) => {
           result.value += chunk
@@ -1179,7 +1189,7 @@ const startSubProposalGeneration = async () => {
         return
     }
 
-    if (!ensureMethodologyBasis('请至少选择系统内置方法论或添加书籍作为设计依据')) return
+    if (!ensureMethodologyBasis('请至少选择系统内置方法论')) return
 
     if (!currentUser.value) {
         showLoginDialog.value = true
@@ -1207,7 +1217,8 @@ const startSubProposalGeneration = async () => {
         subPlanTitle.value,
         subPlanDetails.value,
         formattedMethodologies,
-        customMethodologies.value,
+        departmentBooks.value,
+        selectedDepartment.value,
         (chunk) => {
           result.value += chunk
         },
@@ -1234,8 +1245,6 @@ const reset = () => {
   result.value = ''
   analyzing.value = false
   customPrompt.value = ''
-  customMethodologies.value = []
-  newCustomMethodology.value = ''
   referenceFile.value = null
   parentPlanFile.value = null
   subPlanTitle.value = ''
@@ -1571,22 +1580,39 @@ body {
 }
 
 .role-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  width: 100%;
 }
 
-.role-group .el-radio-button__inner {
-  border-radius: 4px !important;
-  border: 1px solid #dcdfe6;
-  padding: 8px 15px;
+.role-group :deep(.el-radio-button) {
+  width: 100%;
+  margin-right: 0 !important;
+}
+
+.role-group :deep(.el-radio-button__inner) {
+  width: 100%;
+  border: 1px solid #dcdfe6 !important;
+  border-radius: 6px !important;
   box-shadow: none !important;
+  padding: 10px 5px !important;
+  height: auto !important;
+  min-height: 42px;
+  line-height: 1.3 !important;
+  white-space: normal !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
 }
 
-.role-group .el-radio-button.is-active .el-radio-button__inner {
-  background-color: #d81e06;
-  border-color: #d81e06;
-  color: white;
+.role-group :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
+  background-color: #ecf5ff !important;
+  border-color: #409eff !important;
+  color: #409eff !important;
+  box-shadow: none !important;
+  font-weight: 600;
 }
 
 .divider-dashed {
@@ -1619,10 +1645,17 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  padding: 12px;
+  background-color: #f8fafc;
+  border-radius: 8px;
+  border: 1px dashed #e2e8f0;
 }
 
 .custom-tag {
   font-size: 13px;
+  border-color: #d9ecff;
+  background-color: #ecf5ff;
+  color: #409eff;
 }
 
 .header {
