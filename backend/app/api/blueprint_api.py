@@ -73,6 +73,65 @@ def _save_analysis_history(
     }
     mongo.db.analysis_histories.insert_one(doc)
 
+DEPARTMENT_DEFAULT_BOOKS = {
+    "president_office": [
+        "发现利润区（亚德里安·斯莱沃斯基）",
+        "创新跃迁（迈克尔·塔什曼 / 查尔斯·奥赖利）",
+        "华为战略管理法：DSTE实战体系（谢宁）",
+        "BEM方法论",
+        "金字塔原理"
+    ],
+    "war_zone": [
+        "华为营销铁军（人邮普华出品）",
+        "华为规模营销法",
+        "BEM方法论"
+    ],
+    "product_solution": [
+        "从偶然到必然：华为研发投资与管理实践（升级版）（夏忠毅）",
+        "BEM方法论"
+    ],
+    "supply_delivery": [
+        "供应链交付战法+供应铁军（袁建东）",
+        "华为项目管理之道",
+        "BEM方法论"
+    ],
+    "process_it": [
+        "华为数字化转型之道",
+        "华为数据之道",
+        "BEM方法论"
+    ],
+    "finance_audit": [
+        "华为财经密码",
+        "打赢年度经营大战（向国）",
+        "BEM方法论"
+    ],
+    "hr": [
+        "以奋斗者为本",
+        "熵减：华为活力之源",
+        "理念 制度 人",
+        "卓越组织的原动力（田涛）",
+        "在悖论中前进"
+    ],
+    "general": [
+        "价值为纲",
+        "华为战略管理法：DSTE实战体系（谢宁）",
+        "BEM方法论"
+    ],
+    "all": [
+        "价值为纲",
+        "华为战略管理法：DSTE实战体系（谢宁）",
+        "BEM方法论"
+    ]
+}
+
+def _get_department_default_books(department: str) -> list:
+    dept = (department or "").strip()
+    if not dept:
+        dept = "all"
+    if dept not in DEPARTMENT_DEFAULT_BOOKS:
+        dept = "all"
+    return DEPARTMENT_DEFAULT_BOOKS.get(dept, [])
+
 @blueprint_bp.route('/analyze', methods=['POST'])
 def analyze():
     """
@@ -86,7 +145,7 @@ def analyze():
     custom_prompt = request.form.get('custom_prompt', '') # 获取用户自定义提示词
     user_id = request.form.get('user_id')
     username = request.form.get('username')
-    role = request.form.get('role', 'unknown') # 获取用户角色
+    role = request.form.get('role', 'all') # 获取用户部门
     
     if user_id:
         pass # Log logic moved to generate()
@@ -98,11 +157,10 @@ def analyze():
     if len(methodologies) == 1 and ',' in methodologies[0]:
         methodologies = methodologies[0].split(',')
 
-    # 获取用户自定义方法论 (这里复用字段，实际含义已扩展为包含书籍)
-    custom_methodologies = request.form.getlist('custom_methodologies')
+    custom_methodologies = _get_department_default_books(role)
 
     if len(methodologies) == 0 and len(custom_methodologies) == 0:
-        return jsonify({"code": 400, "message": "请至少选择系统内置方法论或添加书籍作为评审依据", "data": None}), 400
+        return jsonify({"code": 400, "message": "请至少选择系统内置方法论", "data": None}), 400
     
     if file.filename == '':
         return jsonify({"code": 400, "message": "No selected file", "data": None}), 400
@@ -435,16 +493,18 @@ def generate_proposal():
         data = request.get_json(silent=True) or {}
         client_needs = data.get('client_needs', '')
         user_ideas = data.get('user_ideas', '')
+        role = data.get('role', 'all')
         methodologies = data.get('methodologies', [])
-        custom_methodologies = data.get('custom_methodologies', [])
+        custom_methodologies = _get_department_default_books(role)
     else:
         client_needs = request.form.get('client_needs', '')
         user_ideas = request.form.get('user_ideas', '')
+        role = request.form.get('role', 'all')
         methodologies = request.form.getlist('methodologies')
         if len(methodologies) == 1 and ',' in methodologies[0]:
             methodologies = methodologies[0].split(',')
 
-        custom_methodologies = request.form.getlist('custom_methodologies')
+        custom_methodologies = _get_department_default_books(role)
         reference_file = request.files.get('reference_file') or request.files.get('file')
         if reference_file and reference_file.filename == '':
             reference_file = None
@@ -453,7 +513,7 @@ def generate_proposal():
         return jsonify({"code": 400, "message": "Client needs are required", "data": None}), 400
 
     if len(methodologies) == 0 and len(custom_methodologies) == 0:
-        return jsonify({"code": 400, "message": "请至少选择系统内置方法论或添加书籍作为设计依据", "data": None}), 400
+        return jsonify({"code": 400, "message": "请至少选择系统内置方法论", "data": None}), 400
         
     try:
         reference_file_content = None
@@ -497,11 +557,12 @@ def generate_sub_proposal():
     parent_file = request.files.get('parent_file') or request.files.get('file')
     sub_plan_title = request.form.get('sub_plan_title', '')
     sub_plan_details = request.form.get('sub_plan_details', '')
+    role = request.form.get('role', 'all')
 
     methodologies = request.form.getlist('methodologies')
     if len(methodologies) == 1 and ',' in methodologies[0]:
         methodologies = methodologies[0].split(',')
-    custom_methodologies = request.form.getlist('custom_methodologies')
+    custom_methodologies = _get_department_default_books(role)
 
     if not parent_file or parent_file.filename == '':
         return jsonify({"code": 400, "message": "请上传父方案文档", "data": None}), 400
@@ -510,7 +571,7 @@ def generate_sub_proposal():
         return jsonify({"code": 400, "message": "请填写要生成的子专项/子方案名称", "data": None}), 400
 
     if len(methodologies) == 0 and len(custom_methodologies) == 0:
-        return jsonify({"code": 400, "message": "请至少选择系统内置方法论或添加书籍作为设计依据", "data": None}), 400
+        return jsonify({"code": 400, "message": "请至少选择系统内置方法论", "data": None}), 400
 
     try:
         parent_file_content = parent_file.read()

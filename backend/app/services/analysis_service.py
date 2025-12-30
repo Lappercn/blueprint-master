@@ -624,7 +624,7 @@ class AnalysisService:
                             methodology_text += f"{s_data['content']}\n"
 
         if custom_methodologies:
-            methodology_text += "\n### 【用户补充参考书籍/理论】\n"
+            methodology_text += "\n### 【部门默认参考书籍/理论】\n"
             for cm in custom_methodologies:
                 if cm.strip():
                     methodology_text += f"*   📖 **{cm}**\n"
@@ -701,7 +701,7 @@ class AnalysisService:
                             methodology_text += f"{s_data['content']}\n"
 
         if custom_methodologies:
-            methodology_text += "\n### 【用户补充参考书籍/理论】\n"
+            methodology_text += "\n### 【部门默认参考书籍/理论】\n"
             for cm in custom_methodologies:
                 if cm.strip():
                     methodology_text += f"*   📖 **{cm}**\n"
@@ -807,7 +807,7 @@ class AnalysisService:
         
         # 添加用户自定义书籍/方法论
         if custom_methodologies:
-            methodology_text += "\n### 【用户补充参考书籍/理论】\n"
+            methodology_text += "\n### 【部门默认参考书籍/理论】\n"
             for cm in custom_methodologies:
                 if cm.strip():
                     methodology_text += f"*   📖 **{cm}**\n"
